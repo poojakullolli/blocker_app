@@ -1,0 +1,312 @@
+<xml xmlns="https://developers.google.com/blockly/xml">
+  <!-- ============================================================ -->
+  <!-- GLOBAL VARIABLES                                             -->
+  <!-- These variables store PIN, allowed apps, timer, and state   -->
+  <!-- ============================================================ -->
+
+  <!-- Store the user's PIN (default: 1234) -->
+  <block type="global_declaration" id="gv_pin" x="20" y="20">
+    <field name="NAME">userPIN</field>
+    <value name="VALUE">
+      <block type="text" id="default_pin"><field name="TEXT">1234</field></block>
+    </value>
+  </block>
+
+  <!-- Store list of allowed apps -->
+  <block type="global_declaration" id="gv_allowedApps" x="20" y="80">
+    <field name="NAME">allowedApps</field>
+    <value name="VALUE">
+      <block type="lists_create_empty" id="empty_list_allowed"></block>
+    </value>
+  </block>
+
+  <!-- Focus mode active flag (true/false) -->
+  <block type="global_declaration" id="gv_focusActive" x="20" y="140">
+    <field name="NAME">focusActive</field>
+    <value name="VALUE">
+      <block type="logic_boolean" id="bool_false"><field name="BOOL">FALSE</field></block>
+    </value>
+  </block>
+
+  <!-- Timer remaining seconds -->
+  <block type="global_declaration" id="gv_timerSeconds" x="20" y="200">
+    <field name="NAME">timerSeconds</field>
+    <value name="VALUE">
+      <block type="math_number" id="timer_default"><field name="NUM">3600</field></block>
+    </value>
+  </block>
+
+  <!-- Timer enabled flag -->
+  <block type="global_declaration" id="gv_timerEnabled" x="20" y="260">
+    <field name="NAME">timerEnabled</field>
+    <value name="VALUE">
+      <block type="logic_boolean" id="bool_false2"><field name="BOOL">FALSE</field></block>
+    </value>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN1 INITIALIZE: Load saved settings from TinyDB         -->
+  <!-- Runs when the app first opens                               -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev_screen_init" x="20" y="340">
+    <mutation component_type="Form" event_name="Initialize"></mutation>
+    <field name="COMPONENT_SELECTOR">Screen1</field>
+    <statement name="DO">
+      <!-- Load saved PIN from TinyDB -->
+      <block type="component_set_get" id="set_pin_from_db">
+        <mutation component_type="TinyDB" set_or_get="set" property_name=""></mutation>
+        <field name="COMPONENT_SELECTOR">TinyDB1</field>
+        <comment pinned="true" h="60" w="200">Load PIN from storage. Default to 1234 if not set.</comment>
+        <value name="VALUE">
+          <block type="component_method" id="db_get_pin">
+            <mutation component_type="TinyDB" method_name="GetValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB1</field>
+            <value name="tag">
+              <block type="text" id="tag_pin"><field name="TEXT">userPIN</field></block>
+            </value>
+            <value name="valueIfTagNotThere">
+              <block type="text" id="default_pin_db"><field name="TEXT">1234</field></block>
+            </value>
+          </block>
+        </value>
+      </block>
+      <!-- Load saved allowed apps list -->
+      <block type="component_set_get" id="set_apps_from_db">
+        <mutation component_type="TinyDB" set_or_get="set" property_name=""></mutation>
+        <field name="COMPONENT_SELECTOR">TinyDB1</field>
+        <comment pinned="true" h="60" w="200">Load allowed apps list from storage.</comment>
+        <value name="VALUE">
+          <block type="component_method" id="db_get_apps">
+            <mutation component_type="TinyDB" method_name="GetValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB1</field>
+            <value name="tag">
+              <block type="text" id="tag_apps"><field name="TEXT">allowedApps</field></block>
+            </value>
+            <value name="valueIfTagNotThere">
+              <block type="lists_create_empty" id="empty_apps_fallback"></block>
+            </value>
+          </block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- BUTTON: Start Focus Mode                                     -->
+  <!-- Asks for PIN confirm, then activates focus mode             -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev_start_focus" x="700" y="20">
+    <mutation component_type="Button" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">ButtonStartFocus</field>
+    <comment pinned="true" h="80" w="280">When START FOCUS is clicked, ask user to confirm with PIN then activate focus mode.</comment>
+    <statement name="DO">
+      <!-- Show PIN confirmation dialog -->
+      <block type="component_method" id="notif_ask_pin">
+        <mutation component_type="Notifier" method_name="ShowTextDialog"></mutation>
+        <field name="COMPONENT_SELECTOR">Notifier1</field>
+        <value name="title">
+          <block type="text" id="dlg_title"><field name="TEXT">🔐 Confirm PIN to Start</field></block>
+        </value>
+        <value name="message">
+          <block type="text" id="dlg_msg"><field name="TEXT">Enter your PIN to activate Focus Mode:</field></block>
+        </value>
+        <value name="cancelable">
+          <block type="logic_boolean" id="cancelable_true"><field name="BOOL">TRUE</field></block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <!-- Handle PIN dialog response for Start Focus -->
+  <block type="component_event" id="ev_notifier_start" x="700" y="160">
+    <mutation component_type="Notifier" event_name="AfterTextInput"></mutation>
+    <field name="COMPONENT_SELECTOR">Notifier1</field>
+    <statement name="DO">
+      <!-- Check if entered PIN matches stored PIN -->
+      <block type="controls_if" id="if_pin_correct">
+        <comment pinned="true" h="60" w="260">If PIN is correct, open the Focus Screen (Screen2).</comment>
+        <value name="IF0">
+          <block type="logic_compare" id="compare_pin">
+            <field name="OP">EQ</field>
+            <value name="A">
+              <block type="lexical_variable_get" id="get_response">
+                <field name="VAR">response</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="lexical_variable_get" id="get_stored_pin">
+                <field name="VAR">global userPIN</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <!-- Set focus active -->
+          <block type="lexical_variable_set" id="set_focus_true">
+            <field name="VAR">global focusActive</field>
+            <value name="VALUE">
+              <block type="logic_boolean" id="bool_true_focus"><field name="BOOL">TRUE</field></block>
+            </value>
+          </block>
+          <!-- Save focus state to TinyDB -->
+          <block type="component_method" id="db_save_focus">
+            <mutation component_type="TinyDB" method_name="StoreValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB1</field>
+            <value name="tag">
+              <block type="text" id="tag_focus"><field name="TEXT">focusActive</field></block>
+            </value>
+            <value name="valueToStore">
+              <block type="logic_boolean" id="bool_true2"><field name="BOOL">TRUE</field></block>
+            </value>
+          </block>
+          <!-- Open Focus Mode Screen -->
+          <block type="component_method" id="open_screen2">
+            <mutation component_type="Form" method_name="SwitchForm"></mutation>
+            <field name="COMPONENT_SELECTOR">Screen1</field>
+            <value name="screenName">
+              <block type="text" id="screen2_name"><field name="TEXT">Screen2</field></block>
+            </value>
+          </block>
+        </statement>
+        <statement name="ELSE">
+          <!-- Wrong PIN - show error -->
+          <block type="component_method" id="show_wrong_pin">
+            <mutation component_type="Notifier" method_name="ShowAlert"></mutation>
+            <field name="COMPONENT_SELECTOR">Notifier1</field>
+            <value name="notice">
+              <block type="text" id="wrong_pin_msg"><field name="TEXT">❌ Incorrect PIN. Try again.</field></block>
+            </value>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- BUTTON: Settings                                             -->
+  <!-- Opens the Settings screen (Screen3)                         -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev_settings_btn" x="700" y="400">
+    <mutation component_type="Button" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">ButtonSettings</field>
+    <comment pinned="true" h="60" w="200">Navigate to Settings screen when button clicked.</comment>
+    <statement name="DO">
+      <block type="component_method" id="open_settings">
+        <mutation component_type="Form" method_name="SwitchForm"></mutation>
+        <field name="COMPONENT_SELECTOR">Screen1</field>
+        <value name="screenName">
+          <block type="text" id="settings_screen_name"><field name="TEXT">Screen3</field></block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- CLOCK TIMER: Countdown tick every second                    -->
+  <!-- Decrements timer and auto-unlocks when it hits zero        -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev_clock_timer" x="1400" y="20">
+    <mutation component_type="Clock" event_name="Timer"></mutation>
+    <field name="COMPONENT_SELECTOR">Clock1</field>
+    <comment pinned="true" h="80" w="280">Clock ticks every second. Decrements the timer. Auto-unlocks when timer reaches 0.</comment>
+    <statement name="DO">
+      <!-- Only run if timer is enabled and focus is active -->
+      <block type="controls_if" id="if_timer_active">
+        <value name="IF0">
+          <block type="logic_operation" id="and_conditions">
+            <field name="OP">AND</field>
+            <value name="A">
+              <block type="lexical_variable_get" id="get_timer_enabled">
+                <field name="VAR">global timerEnabled</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="lexical_variable_get" id="get_focus_active2">
+                <field name="VAR">global focusActive</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <!-- Decrement timer -->
+          <block type="lexical_variable_set" id="decrement_timer">
+            <field name="VAR">global timerSeconds</field>
+            <value name="VALUE">
+              <block type="math_arithmetic" id="subtract_one">
+                <field name="OP">MINUS</field>
+                <value name="A">
+                  <block type="lexical_variable_get" id="get_timer_secs">
+                    <field name="VAR">global timerSeconds</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="math_number" id="one"><field name="NUM">1</field></block>
+                </value>
+              </block>
+            </value>
+          </block>
+          <!-- Check if timer reached zero -->
+          <block type="controls_if" id="if_timer_zero">
+            <value name="IF0">
+              <block type="logic_compare" id="compare_zero">
+                <field name="OP">LTE</field>
+                <value name="A">
+                  <block type="lexical_variable_get" id="get_timer_secs2">
+                    <field name="VAR">global timerSeconds</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="math_number" id="zero"><field name="NUM">0</field></block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <!-- Auto-unlock: disable focus and stop timer -->
+              <block type="lexical_variable_set" id="set_focus_false">
+                <field name="VAR">global focusActive</field>
+                <value name="VALUE">
+                  <block type="logic_boolean" id="bool_false_auto"><field name="BOOL">FALSE</field></block>
+                </value>
+              </block>
+              <block type="component_set_get" id="disable_clock">
+                <mutation component_type="Clock" set_or_get="set" property_name="TimerEnabled"></mutation>
+                <field name="COMPONENT_SELECTOR">Clock1</field>
+                <value name="VALUE">
+                  <block type="logic_boolean" id="bool_false_clock"><field name="BOOL">FALSE</field></block>
+                </value>
+              </block>
+              <!-- Save unlocked state -->
+              <block type="component_method" id="db_clear_focus">
+                <mutation component_type="TinyDB" method_name="StoreValue"></mutation>
+                <field name="COMPONENT_SELECTOR">TinyDB1</field>
+                <value name="tag">
+                  <block type="text" id="tag_focus2"><field name="TEXT">focusActive</field></block>
+                </value>
+                <value name="valueToStore">
+                  <block type="logic_boolean" id="bool_false_store"><field name="BOOL">FALSE</field></block>
+                </value>
+              </block>
+              <!-- Notify user that focus time is over -->
+              <block type="component_method" id="show_timer_done">
+                <mutation component_type="Notifier" method_name="ShowAlert"></mutation>
+                <field name="COMPONENT_SELECTOR">Notifier1</field>
+                <value name="notice">
+                  <block type="text" id="timer_done_msg"><field name="TEXT">✅ Focus session complete! Great work!</field></block>
+                </value>
+              </block>
+              <!-- Update status label -->
+              <block type="component_set_get" id="update_status_off">
+                <mutation component_type="Label" set_or_get="set" property_name="Text"></mutation>
+                <field name="COMPONENT_SELECTOR">LabelStatus</field>
+                <value name="VALUE">
+                  <block type="text" id="status_off"><field name="TEXT">Focus Mode: OFF</field></block>
+                </value>
+              </block>
+            </statement>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+</xml>

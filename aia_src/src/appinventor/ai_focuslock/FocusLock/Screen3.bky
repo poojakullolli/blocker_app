@@ -1,0 +1,582 @@
+<xml xmlns="https://developers.google.com/blockly/xml">
+  <!-- ============================================================ -->
+  <!-- SCREEN3 GLOBALS                                             -->
+  <!-- ============================================================ -->
+  <block type="global_declaration" id="gv3_pin" x="20" y="20">
+    <field name="NAME">currentPIN</field>
+    <value name="VALUE">
+      <block type="text" id="s3_pin_default"><field name="TEXT">1234</field></block>
+    </value>
+  </block>
+
+  <block type="global_declaration" id="gv3_apps" x="20" y="80">
+    <field name="NAME">allowedAppsList</field>
+    <value name="VALUE">
+      <block type="lists_create_empty" id="s3_empty_list"></block>
+    </value>
+  </block>
+
+  <block type="global_declaration" id="gv3_selected" x="20" y="140">
+    <field name="NAME">selectedApp</field>
+    <value name="VALUE">
+      <block type="text" id="s3_empty_str"><field name="TEXT"></field></block>
+    </value>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN3 INITIALIZE: Load all settings from TinyDB          -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev3_init" x="20" y="200">
+    <mutation component_type="Form" event_name="Initialize"></mutation>
+    <field name="COMPONENT_SELECTOR">Screen3</field>
+    <comment pinned="true" h="80" w="300">Settings screen loads: retrieve PIN, timer, and app list from TinyDB storage.</comment>
+    <statement name="DO">
+      <!-- Load current PIN -->
+      <block type="lexical_variable_set" id="s3_load_pin">
+        <field name="VAR">global currentPIN</field>
+        <value name="VALUE">
+          <block type="component_method" id="db3_get_pin">
+            <mutation component_type="TinyDB" method_name="GetValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB3</field>
+            <value name="tag">
+              <block type="text" id="s3_tag_pin"><field name="TEXT">userPIN</field></block>
+            </value>
+            <value name="valueIfTagNotThere">
+              <block type="text" id="s3_default_pin"><field name="TEXT">1234</field></block>
+            </value>
+          </block>
+        </value>
+      </block>
+      <!-- Load allowed apps list -->
+      <block type="lexical_variable_set" id="s3_load_apps">
+        <field name="VAR">global allowedAppsList</field>
+        <value name="VALUE">
+          <block type="component_method" id="db3_get_apps">
+            <mutation component_type="TinyDB" method_name="GetValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB3</field>
+            <value name="tag">
+              <block type="text" id="s3_tag_apps"><field name="TEXT">allowedApps</field></block>
+            </value>
+            <value name="valueIfTagNotThere">
+              <block type="lists_create_empty" id="s3_empty_apps2"></block>
+            </value>
+          </block>
+        </value>
+      </block>
+      <!-- Load timer minutes -->
+      <block type="component_set_get" id="s3_load_timer_box">
+        <mutation component_type="TextBox" set_or_get="set" property_name="Text"></mutation>
+        <field name="COMPONENT_SELECTOR">TextBoxTimerMins</field>
+        <value name="VALUE">
+          <block type="component_method" id="db3_get_timer">
+            <mutation component_type="TinyDB" method_name="GetValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB3</field>
+            <value name="tag">
+              <block type="text" id="s3_tag_timer"><field name="TEXT">timerMinutes</field></block>
+            </value>
+            <value name="valueIfTagNotThere">
+              <block type="text" id="s3_60"><field name="TEXT">60</field></block>
+            </value>
+          </block>
+        </value>
+      </block>
+      <!-- Load timer enabled checkbox state -->
+      <block type="component_set_get" id="s3_load_timer_chk">
+        <mutation component_type="CheckBox" set_or_get="set" property_name="Checked"></mutation>
+        <field name="COMPONENT_SELECTOR">CheckboxTimerEnabled</field>
+        <value name="VALUE">
+          <block type="component_method" id="db3_get_timer_on">
+            <mutation component_type="TinyDB" method_name="GetValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB3</field>
+            <value name="tag">
+              <block type="text" id="s3_tag_timer_on"><field name="TEXT">timerEnabled</field></block>
+            </value>
+            <value name="valueIfTagNotThere">
+              <block type="logic_boolean" id="s3_false_chk"><field name="BOOL">FALSE</field></block>
+            </value>
+          </block>
+        </value>
+      </block>
+      <!-- Refresh the apps list view -->
+      <block type="procedures_callnoreturn" id="call_refresh_list">
+        <mutation name="RefreshAppsList"></mutation>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- PROCEDURE: RefreshAppsList                                  -->
+  <!-- Updates the ListView with current allowedAppsList contents  -->
+  <!-- ============================================================ -->
+  <block type="procedures_defnoreturn" id="proc_refresh_apps" x="700" y="20">
+    <field name="NAME">RefreshAppsList</field>
+    <comment pinned="true" h="60" w="260">Refreshes the visible list of allowed apps from the global variable.</comment>
+    <statement name="STACK">
+      <block type="component_set_get" id="set_listview">
+        <mutation component_type="ListView" set_or_get="set" property_name="Elements"></mutation>
+        <field name="COMPONENT_SELECTOR">ListViewAllowedApps</field>
+        <value name="VALUE">
+          <block type="lexical_variable_get" id="get_apps_for_lv">
+            <field name="VAR">global allowedAppsList</field>
+          </block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- BUTTON: Change PIN                                          -->
+  <!-- Validates current PIN, then saves new PIN                   -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev3_change_pin" x="20" y="500">
+    <mutation component_type="Button" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">ButtonChangePIN</field>
+    <comment pinned="true" h="80" w="300">PIN CHANGE: Verify current PIN matches, then save the new PIN to TinyDB.</comment>
+    <statement name="DO">
+      <block type="controls_if" id="if3_verify_pin">
+        <mutation else="1"></mutation>
+        <!-- Check: current PIN field must match stored PIN -->
+        <value name="IF0">
+          <block type="logic_compare" id="cmp3_current_pin">
+            <field name="OP">EQ</field>
+            <value name="A">
+              <block type="component_set_get" id="get_current_pin_text">
+                <mutation component_type="PasswordTextBox" set_or_get="get" property_name="Text"></mutation>
+                <field name="COMPONENT_SELECTOR">TextBoxCurrentPIN</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="lexical_variable_get" id="get3_stored_pin">
+                <field name="VAR">global currentPIN</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <!-- Check new PIN not empty -->
+          <block type="controls_if" id="if3_new_pin_not_empty">
+            <mutation else="1"></mutation>
+            <value name="IF0">
+              <block type="logic_negate" id="not_empty">
+                <value name="BOOL">
+                  <block type="logic_compare" id="cmp_empty">
+                    <field name="OP">EQ</field>
+                    <value name="A">
+                      <block type="text_length" id="pin_length">
+                        <value name="VALUE">
+                          <block type="component_set_get" id="get_new_pin_text">
+                            <mutation component_type="PasswordTextBox" set_or_get="get" property_name="Text"></mutation>
+                            <field name="COMPONENT_SELECTOR">TextBoxNewPIN</field>
+                          </block>
+                        </value>
+                      </block>
+                    </value>
+                    <value name="B">
+                      <block type="math_number" id="zero3"><field name="NUM">0</field></block>
+                    </value>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <!-- Save new PIN to global variable -->
+              <block type="lexical_variable_set" id="update_pin_var">
+                <field name="VAR">global currentPIN</field>
+                <value name="VALUE">
+                  <block type="component_set_get" id="get_new_pin_val">
+                    <mutation component_type="PasswordTextBox" set_or_get="get" property_name="Text"></mutation>
+                    <field name="COMPONENT_SELECTOR">TextBoxNewPIN</field>
+                  </block>
+                </value>
+              </block>
+              <!-- Save new PIN to TinyDB -->
+              <block type="component_method" id="db3_save_pin">
+                <mutation component_type="TinyDB" method_name="StoreValue"></mutation>
+                <field name="COMPONENT_SELECTOR">TinyDB3</field>
+                <value name="tag">
+                  <block type="text" id="s3_tag_pin2"><field name="TEXT">userPIN</field></block>
+                </value>
+                <value name="valueToStore">
+                  <block type="lexical_variable_get" id="get_new_pin3">
+                    <field name="VAR">global currentPIN</field>
+                  </block>
+                </value>
+              </block>
+              <!-- Show success -->
+              <block type="component_set_get" id="show_pin_success">
+                <mutation component_type="Label" set_or_get="set" property_name="Text"></mutation>
+                <field name="COMPONENT_SELECTOR">LabelPINFeedback</field>
+                <value name="VALUE">
+                  <block type="text" id="pin_ok_msg"><field name="TEXT">✅ PIN updated successfully!</field></block>
+                </value>
+              </block>
+              <!-- Clear input fields -->
+              <block type="component_set_get" id="clear_pin_box1">
+                <mutation component_type="PasswordTextBox" set_or_get="set" property_name="Text"></mutation>
+                <field name="COMPONENT_SELECTOR">TextBoxCurrentPIN</field>
+                <value name="VALUE">
+                  <block type="text" id="empty1"><field name="TEXT"></field></block>
+                </value>
+              </block>
+              <block type="component_set_get" id="clear_pin_box2">
+                <mutation component_type="PasswordTextBox" set_or_get="set" property_name="Text"></mutation>
+                <field name="COMPONENT_SELECTOR">TextBoxNewPIN</field>
+                <value name="VALUE">
+                  <block type="text" id="empty2"><field name="TEXT"></field></block>
+                </value>
+              </block>
+            </statement>
+            <statement name="ELSE">
+              <!-- New PIN is empty -->
+              <block type="component_set_get" id="show_empty_pin_err">
+                <mutation component_type="Label" set_or_get="set" property_name="Text"></mutation>
+                <field name="COMPONENT_SELECTOR">LabelPINFeedback</field>
+                <value name="VALUE">
+                  <block type="text" id="empty_pin_msg"><field name="TEXT">⚠ New PIN cannot be empty!</field></block>
+                </value>
+              </block>
+            </statement>
+          </block>
+        </statement>
+        <statement name="ELSE">
+          <!-- Current PIN wrong -->
+          <block type="component_set_get" id="show_wrong_curr_pin">
+            <mutation component_type="Label" set_or_get="set" property_name="Text"></mutation>
+            <field name="COMPONENT_SELECTOR">LabelPINFeedback</field>
+            <value name="VALUE">
+              <block type="text" id="wrong_curr_msg"><field name="TEXT">❌ Current PIN is incorrect!</field></block>
+            </value>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- BUTTON: Add App to Allowed List                             -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev3_add_app" x="700" y="500">
+    <mutation component_type="Button" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">ButtonAddApp</field>
+    <comment pinned="true" h="80" w="300">ADD APP: Take text from input box, add it to the allowedAppsList if not empty or duplicate.</comment>
+    <statement name="DO">
+      <block type="local_declaration_statement" id="local_app_name">
+        <mutation><localname name="appName"></localname></mutation>
+        <value name="DECL0">
+          <block type="text_trim" id="trim_app">
+            <value name="TEXT">
+              <block type="component_set_get" id="get_app_textbox">
+                <mutation component_type="TextBox" set_or_get="get" property_name="Text"></mutation>
+                <field name="COMPONENT_SELECTOR">TextBoxAppName</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="STACK">
+          <!-- Only add if not empty -->
+          <block type="controls_if" id="if3_app_not_empty">
+            <mutation else="1"></mutation>
+            <value name="IF0">
+              <block type="logic_negate" id="not_empty2">
+                <value name="BOOL">
+                  <block type="logic_compare" id="cmp_empty2">
+                    <field name="OP">EQ</field>
+                    <value name="A">
+                      <block type="text_length" id="app_length">
+                        <value name="VALUE">
+                          <block type="lexical_variable_get" id="get_app_name">
+                            <field name="VAR">appName</field>
+                          </block>
+                        </value>
+                      </block>
+                    </value>
+                    <value name="B">
+                      <block type="math_number" id="zero4"><field name="NUM">0</field></block>
+                    </value>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <!-- Check for duplicates using list contains -->
+              <block type="controls_if" id="if3_not_duplicate">
+                <mutation else="1"></mutation>
+                <value name="IF0">
+                  <block type="logic_negate" id="negate_contains">
+                    <value name="BOOL">
+                      <block type="lists_is_in" id="list_contains">
+                        <value name="ITEM">
+                          <block type="lexical_variable_get" id="get_app_name2">
+                            <field name="VAR">appName</field>
+                          </block>
+                        </value>
+                        <value name="LIST">
+                          <block type="lexical_variable_get" id="get_apps_list">
+                            <field name="VAR">global allowedAppsList</field>
+                          </block>
+                        </value>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+                <statement name="DO0">
+                  <!-- Add app to list -->
+                  <block type="lists_mutator_item" id="add_to_list">
+                    <mutation></mutation>
+                    <value name="LIST">
+                      <block type="lexical_variable_get" id="get_apps_list2">
+                        <field name="VAR">global allowedAppsList</field>
+                      </block>
+                    </value>
+                    <value name="ITEM">
+                      <block type="lexical_variable_get" id="get_app_name3">
+                        <field name="VAR">appName</field>
+                      </block>
+                    </value>
+                  </block>
+                  <!-- Clear input -->
+                  <block type="component_set_get" id="clear_app_box">
+                    <mutation component_type="TextBox" set_or_get="set" property_name="Text"></mutation>
+                    <field name="COMPONENT_SELECTOR">TextBoxAppName</field>
+                    <value name="VALUE">
+                      <block type="text" id="empty3"><field name="TEXT"></field></block>
+                    </value>
+                  </block>
+                  <!-- Refresh list view -->
+                  <block type="procedures_callnoreturn" id="call_refresh2">
+                    <mutation name="RefreshAppsList"></mutation>
+                  </block>
+                </statement>
+                <statement name="ELSE">
+                  <!-- Duplicate app name -->
+                  <block type="component_method" id="show_dup_alert">
+                    <mutation component_type="Notifier" method_name="ShowAlert"></mutation>
+                    <field name="COMPONENT_SELECTOR">Notifier3</field>
+                    <value name="notice">
+                      <block type="text" id="dup_msg"><field name="TEXT">⚠ This app is already in the allowed list!</field></block>
+                    </value>
+                  </block>
+                </statement>
+              </block>
+            </statement>
+            <statement name="ELSE">
+              <block type="component_method" id="show_empty_app_err">
+                <mutation component_type="Notifier" method_name="ShowAlert"></mutation>
+                <field name="COMPONENT_SELECTOR">Notifier3</field>
+                <value name="notice">
+                  <block type="text" id="empty_app_msg"><field name="TEXT">⚠ Please enter an app name first!</field></block>
+                </value>
+              </block>
+            </statement>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- LISTVIEW: Track selected item                               -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev3_list_selection" x="1400" y="20">
+    <mutation component_type="ListView" event_name="AfterPicking"></mutation>
+    <field name="COMPONENT_SELECTOR">ListViewAllowedApps</field>
+    <comment pinned="true" h="60" w="220">Store which app was tapped in the list view (for removal).</comment>
+    <statement name="DO">
+      <block type="lexical_variable_set" id="set_selected_app">
+        <field name="VAR">global selectedApp</field>
+        <value name="VALUE">
+          <block type="component_set_get" id="get_lv_selection">
+            <mutation component_type="ListView" set_or_get="get" property_name="Selection"></mutation>
+            <field name="COMPONENT_SELECTOR">ListViewAllowedApps</field>
+          </block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- BUTTON: Remove Selected App                                 -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev3_remove_app" x="1400" y="200">
+    <mutation component_type="Button" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">ButtonRemoveApp</field>
+    <comment pinned="true" h="80" w="280">REMOVE APP: Removes the currently selected app from the allowed list.</comment>
+    <statement name="DO">
+      <block type="controls_if" id="if3_has_selection">
+        <mutation else="1"></mutation>
+        <value name="IF0">
+          <block type="logic_negate" id="negate_empty_selection">
+            <value name="BOOL">
+              <block type="logic_compare" id="cmp_sel_empty">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="lexical_variable_get" id="get_selected">
+                    <field name="VAR">global selectedApp</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="text" id="empty_sel"><field name="TEXT"></field></block>
+                </value>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <!-- Remove from list -->
+          <block type="lists_remove_item" id="remove_from_list">
+            <value name="LIST">
+              <block type="lexical_variable_get" id="get_list_for_remove">
+                <field name="VAR">global allowedAppsList</field>
+              </block>
+            </value>
+            <value name="INDEX">
+              <block type="lists_position_in" id="find_pos">
+                <value name="ITEM">
+                  <block type="lexical_variable_get" id="get_selected2">
+                    <field name="VAR">global selectedApp</field>
+                  </block>
+                </value>
+                <value name="LIST">
+                  <block type="lexical_variable_get" id="get_list_for_pos">
+                    <field name="VAR">global allowedAppsList</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+          </block>
+          <!-- Clear selection and refresh -->
+          <block type="lexical_variable_set" id="clear_selection">
+            <field name="VAR">global selectedApp</field>
+            <value name="VALUE">
+              <block type="text" id="empty_sel2"><field name="TEXT"></field></block>
+            </value>
+          </block>
+          <block type="procedures_callnoreturn" id="call_refresh3">
+            <mutation name="RefreshAppsList"></mutation>
+          </block>
+        </statement>
+        <statement name="ELSE">
+          <block type="component_method" id="show_no_sel_err">
+            <mutation component_type="Notifier" method_name="ShowAlert"></mutation>
+            <field name="COMPONENT_SELECTOR">Notifier3</field>
+            <value name="notice">
+              <block type="text" id="no_sel_msg"><field name="TEXT">⚠ Tap an app in the list to select it first!</field></block>
+            </value>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- BUTTON: Save Timer                                          -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev3_save_timer" x="700" y="900">
+    <mutation component_type="Button" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">ButtonSaveTimer</field>
+    <comment pinned="true" h="60" w="240">SAVE TIMER: Store the entered minutes value and enabled flag to TinyDB.</comment>
+    <statement name="DO">
+      <!-- Save timer minutes -->
+      <block type="component_method" id="db3_save_timer">
+        <mutation component_type="TinyDB" method_name="StoreValue"></mutation>
+        <field name="COMPONENT_SELECTOR">TinyDB3</field>
+        <value name="tag">
+          <block type="text" id="s3_tag_timer2"><field name="TEXT">timerMinutes</field></block>
+        </value>
+        <value name="valueToStore">
+          <block type="component_set_get" id="get_timer_mins_text">
+            <mutation component_type="TextBox" set_or_get="get" property_name="Text"></mutation>
+            <field name="COMPONENT_SELECTOR">TextBoxTimerMins</field>
+          </block>
+        </value>
+      </block>
+      <!-- Save timer enabled flag -->
+      <block type="component_method" id="db3_save_timer_on">
+        <mutation component_type="TinyDB" method_name="StoreValue"></mutation>
+        <field name="COMPONENT_SELECTOR">TinyDB3</field>
+        <value name="tag">
+          <block type="text" id="s3_tag_timer_on2"><field name="TEXT">timerEnabled</field></block>
+        </value>
+        <value name="valueToStore">
+          <block type="component_set_get" id="get_checkbox_val">
+            <mutation component_type="CheckBox" set_or_get="get" property_name="Checked"></mutation>
+            <field name="COMPONENT_SELECTOR">CheckboxTimerEnabled</field>
+          </block>
+        </value>
+      </block>
+      <!-- Show feedback -->
+      <block type="component_set_get" id="show_timer_saved">
+        <mutation component_type="Label" set_or_get="set" property_name="Text"></mutation>
+        <field name="COMPONENT_SELECTOR">LabelTimerFeedback</field>
+        <value name="VALUE">
+          <block type="text_join" id="join_timer_msg">
+            <mutation items="3"></mutation>
+            <value name="ADD0">
+              <block type="text" id="timer_msg1"><field name="TEXT">✅ Timer set to </field></block>
+            </value>
+            <value name="ADD1">
+              <block type="component_set_get" id="get_timer_mins_text2">
+                <mutation component_type="TextBox" set_or_get="get" property_name="Text"></mutation>
+                <field name="COMPONENT_SELECTOR">TextBoxTimerMins</field>
+              </block>
+            </value>
+            <value name="ADD2">
+              <block type="text" id="timer_msg2"><field name="TEXT"> minutes</field></block>
+            </value>
+          </block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- BUTTON: Save All Settings                                   -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev3_save_all" x="20" y="1100">
+    <mutation component_type="Button" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">ButtonSaveAll</field>
+    <comment pinned="true" h="80" w="300">SAVE ALL: Writes the current allowed apps list to TinyDB, then shows confirmation.</comment>
+    <statement name="DO">
+      <!-- Save allowed apps list to TinyDB -->
+      <block type="component_method" id="db3_save_apps">
+        <mutation component_type="TinyDB" method_name="StoreValue"></mutation>
+        <field name="COMPONENT_SELECTOR">TinyDB3</field>
+        <value name="tag">
+          <block type="text" id="s3_tag_apps2"><field name="TEXT">allowedApps</field></block>
+        </value>
+        <value name="valueToStore">
+          <block type="lexical_variable_get" id="get_apps_save">
+            <field name="VAR">global allowedAppsList</field>
+          </block>
+        </value>
+      </block>
+      <!-- Show success notification -->
+      <block type="component_method" id="show_save_ok">
+        <mutation component_type="Notifier" method_name="ShowAlert"></mutation>
+        <field name="COMPONENT_SELECTOR">Notifier3</field>
+        <value name="notice">
+          <block type="text" id="save_ok_msg"><field name="TEXT">✅ All settings saved! App list updated.</field></block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- BUTTON: Back to Home                                        -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev3_back_btn" x="700" y="1100">
+    <mutation component_type="Button" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">ButtonBack</field>
+    <comment pinned="true" h="40" w="200">Navigate back to the Home screen.</comment>
+    <statement name="DO">
+      <block type="component_method" id="s3_go_home">
+        <mutation component_type="Form" method_name="SwitchForm"></mutation>
+        <field name="COMPONENT_SELECTOR">Screen3</field>
+        <value name="screenName">
+          <block type="text" id="s3_home_name"><field name="TEXT">Screen1</field></block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+</xml>

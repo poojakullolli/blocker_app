@@ -1,0 +1,418 @@
+<xml xmlns="https://developers.google.com/blockly/xml">
+  <!-- ============================================================ -->
+  <!-- SCREEN2 GLOBALS                                             -->
+  <!-- ============================================================ -->
+  <block type="global_declaration" id="gv2_pin" x="20" y="20">
+    <field name="NAME">storedPIN</field>
+    <value name="VALUE">
+      <block type="text" id="pin_default"><field name="TEXT">1234</field></block>
+    </value>
+  </block>
+
+  <block type="global_declaration" id="gv2_secs" x="20" y="80">
+    <field name="NAME">remainingSecs</field>
+    <value name="VALUE">
+      <block type="math_number" id="secs_default"><field name="NUM">3600</field></block>
+    </value>
+  </block>
+
+  <block type="global_declaration" id="gv2_timer_on" x="20" y="140">
+    <field name="NAME">timerOn</field>
+    <value name="VALUE">
+      <block type="logic_boolean" id="timer_on_false"><field name="BOOL">FALSE</field></block>
+    </value>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- SCREEN2 INITIALIZE: Load stored values and start timer      -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev2_init" x="20" y="200">
+    <mutation component_type="Form" event_name="Initialize"></mutation>
+    <field name="COMPONENT_SELECTOR">Screen2</field>
+    <comment pinned="true" h="80" w="300">When Focus Screen opens, load PIN and timer settings from TinyDB.</comment>
+    <statement name="DO">
+      <!-- Load PIN -->
+      <block type="lexical_variable_set" id="load_pin_s2">
+        <field name="VAR">global storedPIN</field>
+        <value name="VALUE">
+          <block type="component_method" id="db2_get_pin">
+            <mutation component_type="TinyDB" method_name="GetValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB2</field>
+            <value name="tag">
+              <block type="text" id="s2_tag_pin"><field name="TEXT">userPIN</field></block>
+            </value>
+            <value name="valueIfTagNotThere">
+              <block type="text" id="s2_pin_default"><field name="TEXT">1234</field></block>
+            </value>
+          </block>
+        </value>
+      </block>
+      <!-- Load timer duration in minutes, convert to seconds -->
+      <block type="lexical_variable_set" id="load_timer_s2">
+        <field name="VAR">global remainingSecs</field>
+        <value name="VALUE">
+          <block type="math_arithmetic" id="mins_to_secs">
+            <field name="OP">MULTIPLY</field>
+            <value name="A">
+              <block type="component_method" id="db2_get_timer">
+                <mutation component_type="TinyDB" method_name="GetValue"></mutation>
+                <field name="COMPONENT_SELECTOR">TinyDB2</field>
+                <value name="tag">
+                  <block type="text" id="s2_tag_timer"><field name="TEXT">timerMinutes</field></block>
+                </value>
+                <value name="valueIfTagNotThere">
+                  <block type="math_number" id="default_60"><field name="NUM">60</field></block>
+                </value>
+              </block>
+            </value>
+            <value name="B">
+              <block type="math_number" id="sixty"><field name="NUM">60</field></block>
+            </value>
+          </block>
+        </value>
+      </block>
+      <!-- Load timer enabled flag -->
+      <block type="lexical_variable_set" id="load_timer_on">
+        <field name="VAR">global timerOn</field>
+        <value name="VALUE">
+          <block type="component_method" id="db2_get_timer_on">
+            <mutation component_type="TinyDB" method_name="GetValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB2</field>
+            <value name="tag">
+              <block type="text" id="s2_tag_timer_on"><field name="TEXT">timerEnabled</field></block>
+            </value>
+            <value name="valueIfTagNotThere">
+              <block type="logic_boolean" id="timer_on_false2"><field name="BOOL">FALSE</field></block>
+            </value>
+          </block>
+        </value>
+      </block>
+      <!-- Update timer display -->
+      <block type="procedures_callnoreturn" id="call_update_timer">
+        <mutation name="UpdateTimerDisplay"></mutation>
+      </block>
+      <!-- Start clock -->
+      <block type="component_set_get" id="start_clock">
+        <mutation component_type="Clock" set_or_get="set" property_name="TimerEnabled"></mutation>
+        <field name="COMPONENT_SELECTOR">Clock2</field>
+        <value name="VALUE">
+          <block type="logic_boolean" id="bool_true_clock"><field name="BOOL">TRUE</field></block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- PROCEDURE: UpdateTimerDisplay                               -->
+  <!-- Converts seconds to H:MM:SS format and updates label        -->
+  <!-- ============================================================ -->
+  <block type="procedures_defnoreturn" id="proc_update_timer" x="700" y="20">
+    <field name="NAME">UpdateTimerDisplay</field>
+    <comment pinned="true" h="60" w="260">Helper: formats seconds into H:MM:SS string for display.</comment>
+    <statement name="STACK">
+      <!-- hours = floor(remainingSecs / 3600) -->
+      <block type="local_declaration_statement" id="calc_hours">
+        <mutation><localname name="hours"></localname><localname name="mins"></localname><localname name="secs"></localname></mutation>
+        <value name="DECL0">
+          <block type="math_single" id="floor_hours">
+            <field name="OP">FLOOR</field>
+            <value name="NUM">
+              <block type="math_arithmetic" id="div_hours">
+                <field name="OP">DIVIDE</field>
+                <value name="A">
+                  <block type="lexical_variable_get" id="get_rem_secs">
+                    <field name="VAR">global remainingSecs</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="math_number" id="n3600"><field name="NUM">3600</field></block>
+                </value>
+              </block>
+            </value>
+          </block>
+        </value>
+        <value name="DECL1">
+          <!-- mins = floor((remainingSecs mod 3600) / 60) -->
+          <block type="math_single" id="floor_mins">
+            <field name="OP">FLOOR</field>
+            <value name="NUM">
+              <block type="math_arithmetic" id="div_mins">
+                <field name="OP">DIVIDE</field>
+                <value name="A">
+                  <block type="math_modulo" id="mod_3600">
+                    <value name="DIVIDEND">
+                      <block type="lexical_variable_get" id="get_rem_secs2">
+                        <field name="VAR">global remainingSecs</field>
+                      </block>
+                    </value>
+                    <value name="DIVISOR">
+                      <block type="math_number" id="n3600b"><field name="NUM">3600</field></block>
+                    </value>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="math_number" id="n60"><field name="NUM">60</field></block>
+                </value>
+              </block>
+            </value>
+          </block>
+        </value>
+        <value name="DECL2">
+          <!-- secs = remainingSecs mod 60 -->
+          <block type="math_modulo" id="mod_60">
+            <value name="DIVIDEND">
+              <block type="lexical_variable_get" id="get_rem_secs3">
+                <field name="VAR">global remainingSecs</field>
+              </block>
+            </value>
+            <value name="DIVISOR">
+              <block type="math_number" id="n60b"><field name="NUM">60</field></block>
+            </value>
+          </block>
+        </value>
+        <statement name="STACK">
+          <!-- Set timer label to formatted string -->
+          <block type="component_set_get" id="set_timer_label">
+            <mutation component_type="Label" set_or_get="set" property_name="Text"></mutation>
+            <field name="COMPONENT_SELECTOR">LabelTimerDisplay</field>
+            <value name="VALUE">
+              <block type="text_join" id="join_time">
+                <mutation items="5"></mutation>
+                <value name="ADD0">
+                  <block type="lexical_variable_get" id="show_hours"><field name="VAR">hours</field></block>
+                </value>
+                <value name="ADD1">
+                  <block type="text" id="colon1"><field name="TEXT">:</field></block>
+                </value>
+                <value name="ADD2">
+                  <block type="text_formatAsDecimal" id="format_mins">
+                    <value name="NUMBER">
+                      <block type="lexical_variable_get" id="show_mins"><field name="VAR">mins</field></block>
+                    </value>
+                    <value name="PLACES">
+                      <block type="math_number" id="places_2"><field name="NUM">2</field></block>
+                    </value>
+                  </block>
+                </value>
+                <value name="ADD3">
+                  <block type="text" id="colon2"><field name="TEXT">:</field></block>
+                </value>
+                <value name="ADD4">
+                  <block type="text_formatAsDecimal" id="format_secs">
+                    <value name="NUMBER">
+                      <block type="lexical_variable_get" id="show_secs"><field name="VAR">secs</field></block>
+                    </value>
+                    <value name="PLACES">
+                      <block type="math_number" id="places_2b"><field name="NUM">2</field></block>
+                    </value>
+                  </block>
+                </value>
+              </block>
+            </value>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- CLOCK TICK: Countdown every second                          -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev2_clock" x="20" y="600">
+    <mutation component_type="Clock" event_name="Timer"></mutation>
+    <field name="COMPONENT_SELECTOR">Clock2</field>
+    <comment pinned="true" h="60" w="260">Every second: decrement timer. If zero, auto-unlock and go home.</comment>
+    <statement name="DO">
+      <block type="controls_if" id="if2_timer_on">
+        <value name="IF0">
+          <block type="lexical_variable_get" id="get_timer_on">
+            <field name="VAR">global timerOn</field>
+          </block>
+        </value>
+        <statement name="DO0">
+          <block type="lexical_variable_set" id="decrement_secs">
+            <field name="VAR">global remainingSecs</field>
+            <value name="VALUE">
+              <block type="math_arithmetic" id="subtract_1">
+                <field name="OP">MINUS</field>
+                <value name="A">
+                  <block type="lexical_variable_get" id="get_rem4">
+                    <field name="VAR">global remainingSecs</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="math_number" id="sub1"><field name="NUM">1</field></block>
+                </value>
+              </block>
+            </value>
+          </block>
+          <block type="procedures_callnoreturn" id="call_update_display">
+            <mutation name="UpdateTimerDisplay"></mutation>
+          </block>
+          <!-- Check if timer expired -->
+          <block type="controls_if" id="if2_timer_zero">
+            <value name="IF0">
+              <block type="logic_compare" id="cmp_zero2">
+                <field name="OP">LTE</field>
+                <value name="A">
+                  <block type="lexical_variable_get" id="get_rem5">
+                    <field name="VAR">global remainingSecs</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="math_number" id="zero2"><field name="NUM">0</field></block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <!-- Stop clock -->
+              <block type="component_set_get" id="stop_clock2">
+                <mutation component_type="Clock" set_or_get="set" property_name="TimerEnabled"></mutation>
+                <field name="COMPONENT_SELECTOR">Clock2</field>
+                <value name="VALUE">
+                  <block type="logic_boolean" id="stop_bool"><field name="BOOL">FALSE</field></block>
+                </value>
+              </block>
+              <!-- Clear focus state -->
+              <block type="component_method" id="db2_clear_focus">
+                <mutation component_type="TinyDB" method_name="StoreValue"></mutation>
+                <field name="COMPONENT_SELECTOR">TinyDB2</field>
+                <value name="tag">
+                  <block type="text" id="tag_focus3"><field name="TEXT">focusActive</field></block>
+                </value>
+                <value name="valueToStore">
+                  <block type="logic_boolean" id="bool_false3"><field name="BOOL">FALSE</field></block>
+                </value>
+              </block>
+              <!-- Show completion message -->
+              <block type="component_method" id="show_done">
+                <mutation component_type="Notifier" method_name="ShowAlert"></mutation>
+                <field name="COMPONENT_SELECTOR">Notifier2</field>
+                <value name="notice">
+                  <block type="text" id="done_msg"><field name="TEXT">✅ Focus session complete! Well done!</field></block>
+                </value>
+              </block>
+              <!-- Return to home screen -->
+              <block type="component_method" id="close_s2">
+                <mutation component_type="Form" method_name="SwitchForm"></mutation>
+                <field name="COMPONENT_SELECTOR">Screen2</field>
+                <value name="screenName">
+                  <block type="text" id="home_name"><field name="TEXT">Screen1</field></block>
+                </value>
+              </block>
+            </statement>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- HIDDEN UNLOCK BUTTON: Show PIN dialog to exit focus mode    -->
+  <!-- This button is nearly invisible - emergency exit           -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev2_unlock_btn" x="700" y="600">
+    <mutation component_type="Button" event_name="Click"></mutation>
+    <field name="COMPONENT_SELECTOR">ButtonHiddenUnlock</field>
+    <comment pinned="true" h="80" w="300">The hidden unlock button. Shows a PIN entry dialog. Only correct PIN exits focus mode.</comment>
+    <statement name="DO">
+      <block type="component_method" id="show_pin_dialog">
+        <mutation component_type="Notifier" method_name="ShowTextDialog"></mutation>
+        <field name="COMPONENT_SELECTOR">Notifier2</field>
+        <value name="title">
+          <block type="text" id="unlock_title"><field name="TEXT">🔓 Exit Focus Mode</field></block>
+        </value>
+        <value name="message">
+          <block type="text" id="unlock_msg"><field name="TEXT">Enter your PIN to exit Focus Mode:</field></block>
+        </value>
+        <value name="cancelable">
+          <block type="logic_boolean" id="cancelable_true2"><field name="BOOL">TRUE</field></block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+  <!-- Handle PIN response for unlock -->
+  <block type="component_event" id="ev2_pin_response" x="700" y="780">
+    <mutation component_type="Notifier" event_name="AfterTextInput"></mutation>
+    <field name="COMPONENT_SELECTOR">Notifier2</field>
+    <comment pinned="true" h="80" w="300">After user enters PIN: if correct, exit focus mode. If wrong, show error.</comment>
+    <statement name="DO">
+      <block type="controls_if" id="if2_pin_correct">
+        <value name="IF0">
+          <block type="logic_compare" id="cmp2_pin">
+            <field name="OP">EQ</field>
+            <value name="A">
+              <block type="lexical_variable_get" id="get2_response">
+                <field name="VAR">response</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="lexical_variable_get" id="get2_stored_pin">
+                <field name="VAR">global storedPIN</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <!-- Stop timer -->
+          <block type="component_set_get" id="stop_clock3">
+            <mutation component_type="Clock" set_or_get="set" property_name="TimerEnabled"></mutation>
+            <field name="COMPONENT_SELECTOR">Clock2</field>
+            <value name="VALUE">
+              <block type="logic_boolean" id="stop_bool2"><field name="BOOL">FALSE</field></block>
+            </value>
+          </block>
+          <!-- Clear focus in TinyDB -->
+          <block type="component_method" id="db2_clear_focus2">
+            <mutation component_type="TinyDB" method_name="StoreValue"></mutation>
+            <field name="COMPONENT_SELECTOR">TinyDB2</field>
+            <value name="tag">
+              <block type="text" id="tag_focus4"><field name="TEXT">focusActive</field></block>
+            </value>
+            <value name="valueToStore">
+              <block type="logic_boolean" id="bool_false4"><field name="BOOL">FALSE</field></block>
+            </value>
+          </block>
+          <!-- Go back to home screen -->
+          <block type="component_method" id="go_home">
+            <mutation component_type="Form" method_name="SwitchForm"></mutation>
+            <field name="COMPONENT_SELECTOR">Screen2</field>
+            <value name="screenName">
+              <block type="text" id="home_screen"><field name="TEXT">Screen1</field></block>
+            </value>
+          </block>
+        </statement>
+        <statement name="ELSE">
+          <!-- Wrong PIN -->
+          <block type="component_method" id="show_wrong2">
+            <mutation component_type="Notifier" method_name="ShowAlert"></mutation>
+            <field name="COMPONENT_SELECTOR">Notifier2</field>
+            <value name="notice">
+              <block type="text" id="wrong_msg2"><field name="TEXT">❌ Wrong PIN. Stay focused!</field></block>
+            </value>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+
+  <!-- ============================================================ -->
+  <!-- BACK BUTTON: Prevent navigation away from focus screen      -->
+  <!-- ============================================================ -->
+  <block type="component_event" id="ev2_back_press" x="1400" y="20">
+    <mutation component_type="Form" event_name="BackPressed"></mutation>
+    <field name="COMPONENT_SELECTOR">Screen2</field>
+    <comment pinned="true" h="80" w="300">Override back button: show "stay focused" message. Cannot leave without PIN!</comment>
+    <statement name="DO">
+      <block type="component_method" id="show_back_blocked">
+        <mutation component_type="Notifier" method_name="ShowAlert"></mutation>
+        <field name="COMPONENT_SELECTOR">Notifier2</field>
+        <value name="notice">
+          <block type="text" id="back_blocked_msg"><field name="TEXT">🔒 You cannot go back during Focus Mode. Enter PIN to exit.</field></block>
+        </value>
+      </block>
+    </statement>
+  </block>
+
+</xml>
